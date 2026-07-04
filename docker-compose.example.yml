@@ -1,0 +1,36 @@
+# Example deployment for Tower/Unraid. The container name, network, port, and
+# webhook path are the contract Alertmanager already targets — see
+# docs/deployment.md before changing them.
+services:
+  sre-agent:
+    build: .
+    container_name: sre-agent
+    restart: unless-stopped
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      SRE_NTFY_TOPIC: ${SRE_NTFY_TOPIC}
+      SRE_LOKI_URL: http://loki:3100
+      SRE_PROMETHEUS_URL: http://prometheus:9090
+      SRE_DOCKER_PROXY_URL: http://docker-proxy:2375
+      SRE_DB_PATH: /data/incidents.db
+    volumes:
+      - /mnt/user/appdata/sre-agent:/data
+    networks:
+      - monitoring_default
+
+  # GET-only socket proxy per ADR-0001: the agent never mounts the real socket.
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: docker-proxy
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1 # allow GET /containers/*
+      POST: 0      # no mutating methods
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - monitoring_default
+
+networks:
+  monitoring_default:
+    external: true

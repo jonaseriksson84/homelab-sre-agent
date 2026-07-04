@@ -30,4 +30,13 @@ Endpoints on `tower.local` (also reachable over the tailnet):
 
 ## Testing against the live stack
 
-Inject test alerts with `POST tower.local:9093/api/v2/alerts` (verified working end-to-end 2026-07-04). These endpoints are also what the CLI's env vars point at for smoke-testing during development.
+Inject test alerts with `POST tower.local:9093/api/v2/alerts` (verified working end-to-end 2026-07-04). These endpoints are also what the CLI's env vars point at for smoke-testing during development:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+export SRE_LOKI_URL=http://tower.local:3100
+export SRE_PROMETHEUS_URL=http://tower.local:9090
+export SRE_DOCKER_PROXY_URL=http://tower.local:2375   # docker-socket-proxy, see ADR-0001
+export SRE_DB_PATH=/tmp/sre-agent-dev.db
+go run . diagnose <container>
+```
