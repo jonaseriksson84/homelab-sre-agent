@@ -1,0 +1,29 @@
+# Binaries
+/sre-agent
+/bin/
+*.exe
+
+# Test artifacts
+*.test
+coverage.out
+coverage.html
+
+# SQLite databases (local runs)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Local environment / secrets
+.env
+.env.*
+
+# Local scratch (issue-tracker convention keeps .scratch/ untracked)
+.scratch/
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/

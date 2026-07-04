@@ -1,0 +1,3 @@
+# Docker access goes through a GET-only socket proxy
+
+The agent feeds LLM output and (in the agentic phase) LLM-chosen tool calls, so "read-only" cannot rest on app-layer discipline: anything holding `/var/run/docker.sock` is root-equivalent on the host. The agent therefore never mounts the real socket — it talks to a docker-socket-proxy container that permits only read endpoints (list, inspect, logs). Enforcement lives outside the process that talks to an LLM; a bug or prompt injection can at worst read. A read-only Go client wrapper may be added as defense-in-depth, but the proxy is the guarantee.
