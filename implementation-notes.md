@@ -18,6 +18,8 @@ Running log kept during implementation. PRD: GitHub issue #1. Design: `docs/desi
 - **Escalation failure keeps the triage diagnosis.** Not specified in the PRD. If the Opus call errors, notifying the (low-confidence) triage result beats notifying nothing; the store shows `model_used` = triage model so the degradation is auditable.
 - **Loki log selector is `{container="<target>"}`.** The PRD says "the target's logs"; the exact label depends on the promtail/alloy config on Tower. Made the label name configurable via `SRE_LOKI_CONTAINER_LABEL` (default `container`) so a mismatch is a config change, not a code change.
 
+- 2026-07-04: Docker image build verified on Tower (`git archive | ssh tower docker build -` → `sre-agent:dev`); binary runs and fails cleanly on missing `ANTHROPIC_API_KEY`. Local Docker daemon wasn't running, hence the remote build.
+
 ## Open questions / to verify on the live stack
 
 - Confirm the Loki stream label promtail uses for container names on Tower.
