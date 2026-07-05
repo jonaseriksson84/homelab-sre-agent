@@ -33,15 +33,15 @@ Per [ADR-0002](adr/0002-mcp-tailnet-only.md) there is **no app-level auth** — 
 ```yaml
 # in docker-compose.yml on Tower
 environment:
-  SRE_MCP_LISTEN_ADDR: ":8081"
+  SRE_MCP_LISTEN_ADDR: ":8082"
 ports:
-  - "100.x.y.z:8081:8081"   # Tower's Tailscale IP
+  - "100.x.y.z:8082:8082"   # Tower's Tailscale IP
 ```
 
 Client config (Claude Code example; any MCP client with streamable HTTP works):
 
 ```bash
-claude mcp add --transport http homelab http://100.x.y.z:8081
+claude mcp add --transport http homelab http://100.x.y.z:8082
 ```
 
 ## Alert rules (`alerts.yml`)
