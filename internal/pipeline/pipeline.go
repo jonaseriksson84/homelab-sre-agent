@@ -66,6 +66,7 @@ func (p *Pipeline) diagnose(ctx context.Context, target string, at time.Time) (D
 		} else {
 			d.Escalated = escalated
 			d.ModelUsed = p.EscalationModel
+			p.Log.Info("escalation complete", "model", p.EscalationModel)
 		}
 	}
 	return d, bundle, nil
@@ -162,6 +163,8 @@ func (p *Pipeline) HandleWebhook(ctx context.Context, wh Webhook) error {
 		notifyErr := p.Notifier.Notify(ctx, title, d.Text(), notify.SeverityPriority(d.Triage.Severity))
 		if notifyErr != nil {
 			p.Log.Error("diagnosis notification failed", "error", notifyErr)
+		} else {
+			p.Log.Info("diagnosis notified", "id", inc.ID, "model", d.ModelUsed, "severity", d.Triage.Severity)
 		}
 		return p.recordDiagnosis(inc.ID, d, notifyErr == nil)
 
