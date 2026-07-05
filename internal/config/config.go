@@ -24,6 +24,7 @@ type Config struct {
 	MemoryMaxEntries    int
 	ToolBudget          int
 	ListenAddr          string
+	MCPListenAddr       string
 	DBPath              string
 }
 
@@ -40,6 +41,7 @@ func Load() (Config, error) {
 		TriageModel:        getenv("SRE_TRIAGE_MODEL", "claude-haiku-4-5"),
 		EscalationModel:    getenv("SRE_ESCALATION_MODEL", "claude-opus-4-8"),
 		ListenAddr:         getenv("SRE_LISTEN_ADDR", ":8080"),
+		MCPListenAddr:      os.Getenv("SRE_MCP_LISTEN_ADDR"), // empty = MCP disabled
 		DBPath:             getenv("SRE_DB_PATH", "incidents.db"),
 	}
 	var err error

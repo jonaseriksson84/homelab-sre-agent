@@ -19,6 +19,7 @@ Alertmanager ──webhook──▶ sre-agent ──▶ gather Context Bundle �
 - **Triage → escalation** — every Incident is first diagnosed by `claude-haiku-4-5` in a single structured call. If its confidence falls below the threshold, the same bundle re-runs on `claude-opus-4-8`. Only the final Diagnosis is notified.
 - **Incident Memory** — the bundle ends with one-liners for recent prior Incidents matching the same Target or alertname (what fired, the final Diagnosis verdict, time-to-resolve), so a recurring failure is diagnosed as a recurrence. This is where flap awareness lives: flaps create new Incidents, and memory connects them. It comes from the agent's own SQLite store, so it survives a Loki/Prometheus outage.
 - **Agentic escalation** — the escalation call gets a bounded loop of read-only tools (`query_loki`, `query_prometheus`, `list_containers`, `inspect_container`, `get_incidents`) to pull evidence beyond the fixed bundle: other containers' logs, wider windows, ad-hoc PromQL, incident history. The loop is capped (default 5 calls); when the budget runs out the model must conclude. Triage stays a cheap single-shot call.
+- **MCP server** — `serve` optionally exposes the same tool registry over MCP streamable HTTP on a second listener, so you can chat about homelab status from any Claude client. One implementation, two frontends: escalation tool use and MCP can never diverge. No app-level auth by design ([ADR-0002](docs/adr/0002-mcp-tailnet-only.md)) — bind it to the Tailscale interface only.
 - **Read-only by design** — Docker is reached exclusively through a GET-only [socket proxy](docs/adr/0001-docker-socket-proxy.md); there is no auto-remediation. Every tool in the registry is a read.
 
 ## Usage
@@ -54,6 +55,7 @@ Everything is env vars. Only `ANTHROPIC_API_KEY` is required; the defaults match
 | `SRE_MEMORY_MAX_ENTRIES` | `5` | Max prior Incidents in the bundle (`0` disables memory) |
 | `SRE_TOOL_BUDGET` | `5` | Max tool calls per Escalation (`0` disables tools) |
 | `SRE_LISTEN_ADDR` | `:8080` | Webhook listen address |
+| `SRE_MCP_LISTEN_ADDR` | — (disabled) | MCP server listen address; bind to the Tailscale IP |
 | `SRE_DB_PATH` | `incidents.db` | SQLite incident store |
 | `SRE_ANTHROPIC_URL` | `https://api.anthropic.com` | Claude API base URL (tests point this at fakes) |
 
@@ -75,6 +77,4 @@ Deployment is one Docker image with both subcommands — see [`docker-compose.ex
 
 ## Roadmap
 
-Phases 1–4 (CLI, webhook server, Incident Memory, agentic tool use) are implemented. Still ahead, per [`docs/design.md`](docs/design.md):
-
-5. **MCP server** — chat about homelab status from Claude over the tailnet
+All five phases from [`docs/design.md`](docs/design.md) are implemented: CLI, webhook server, Incident Memory, agentic tool use during escalation, and the MCP server.

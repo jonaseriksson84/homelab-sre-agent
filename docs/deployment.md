@@ -24,6 +24,26 @@ Endpoints on `tower.local` (also reachable over the tailnet):
 | Grafana | 3000 |
 | Loki | 3100 |
 
+## MCP server (phase 5)
+
+`sre-agent serve` also runs an MCP streamable HTTP server when `SRE_MCP_LISTEN_ADDR` is set (empty = disabled). It exposes the read-only tool registry (`query_loki`, `query_prometheus`, `list_containers`, `inspect_container`, `get_incidents`) so Claude clients can chat about homelab status.
+
+Per [ADR-0002](adr/0002-mcp-tailnet-only.md) there is **no app-level auth** — the tailnet is the auth boundary. Bind the published port to Tower's Tailscale IP only (find it with `tailscale ip -4` on Tower), never to the LAN or a public interface:
+
+```yaml
+# in docker-compose.yml on Tower
+environment:
+  SRE_MCP_LISTEN_ADDR: ":8081"
+ports:
+  - "100.x.y.z:8081:8081"   # Tower's Tailscale IP
+```
+
+Client config (Claude Code example; any MCP client with streamable HTTP works):
+
+```bash
+claude mcp add --transport http homelab http://100.x.y.z:8081
+```
+
 ## Alert rules (`alerts.yml`)
 
 `InstanceDown`, `HostHighMemory`, `HostHighCPU`, `HostDiskLow`, `ContainerRestarting`, `ContainerDown`. `ContainerRestarting` and `ContainerDown` set a `container` label with the Docker container name — the primary key for Target resolution. (Container-name alerts require cadvisor's `name` label, which needs the `--containerd` flag on cadvisor; `HostDiskLow` requires node_exporter to see the host rootfs via `--path.rootfs=/host`.)

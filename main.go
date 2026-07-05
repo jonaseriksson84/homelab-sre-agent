@@ -12,12 +12,16 @@ import (
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/claude"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/config"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/gather"
+	"github.com/jonaseriksson84/homelab-sre-agent/internal/mcpserver"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/notify"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/pipeline"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/server"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/store"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/tools"
 )
+
+// version identifies the build to MCP clients during the handshake.
+const version = "0.5.0"
 
 func main() {
 	if err := run(); err != nil {
@@ -89,6 +93,19 @@ func run() error {
 		return nil
 
 	case "serve":
+		// MCP is a second listener so the webhook can stay docker-network-only
+		// while MCP binds the tailnet interface (ADR-0002: no app auth; the
+		// tailnet is the boundary). Empty address = disabled.
+		if cfg.MCPListenAddr != "" {
+			h := mcpserver.Handler(p.Tools, version, log)
+			go func() {
+				log.Info("mcp listening", "addr", cfg.MCPListenAddr)
+				if err := http.ListenAndServe(cfg.MCPListenAddr, h); err != nil {
+					log.Error("mcp listener failed", "error", err)
+					os.Exit(1)
+				}
+			}()
+		}
 		srv := &server.Server{Pipeline: p, Log: log}
 		log.Info("listening", "addr", cfg.ListenAddr)
 		return http.ListenAndServe(cfg.ListenAddr, srv.Handler())

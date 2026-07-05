@@ -13,6 +13,11 @@ services:
       SRE_PROMETHEUS_URL: http://prometheus:9090
       SRE_DOCKER_PROXY_URL: http://docker-proxy:2375
       SRE_DB_PATH: /data/incidents.db
+      # MCP server (phase 5). Bind the published port to Tower's Tailscale IP
+      # ONLY — no app auth by design (ADR-0002); the tailnet is the boundary.
+      SRE_MCP_LISTEN_ADDR: ":8081"
+    ports:
+      - "100.x.y.z:8081:8081" # replace with `tailscale ip -4` on the host
     volumes:
       # Data subdir only — keeps .env and the compose file out of the container.
       # Must be writable by the image's non-root user: chown 1000:1000 data
