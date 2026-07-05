@@ -14,7 +14,9 @@ services:
       SRE_DOCKER_PROXY_URL: http://docker-proxy:2375
       SRE_DB_PATH: /data/incidents.db
     volumes:
-      - /mnt/user/appdata/sre-agent:/data
+      # Data subdir only — keeps .env and the compose file out of the container.
+      # Must be writable by the image's non-root user: chown 1000:1000 data
+      - /mnt/user/appdata/sre-agent/data:/data
     networks:
       - monitoring_default
 
