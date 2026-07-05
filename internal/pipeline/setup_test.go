@@ -40,6 +40,8 @@ func newPipeline(t *testing.T, f *fakes) (*pipeline.Pipeline, *store.Store) {
 		ConfidenceThreshold: 0.7,
 		TriageModel:         "test-haiku",
 		EscalationModel:     "test-opus",
+		MemoryWindowDays:    30,
+		MemoryMaxEntries:    5,
 		Log:                 slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	return p, st

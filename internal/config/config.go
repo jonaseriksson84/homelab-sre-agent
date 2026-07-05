@@ -20,6 +20,8 @@ type Config struct {
 	EscalationModel     string
 	ConfidenceThreshold float64
 	LogByteBudget       int
+	MemoryWindowDays    int
+	MemoryMaxEntries    int
 	ListenAddr          string
 	DBPath              string
 }
@@ -48,6 +50,12 @@ func Load() (Config, error) {
 		return c, err
 	}
 	c.LogByteBudget = budget
+	if c.MemoryWindowDays, err = getint("SRE_MEMORY_WINDOW_DAYS", 30); err != nil {
+		return c, err
+	}
+	if c.MemoryMaxEntries, err = getint("SRE_MEMORY_MAX_ENTRIES", 5); err != nil {
+		return c, err
+	}
 	if c.AnthropicKey == "" {
 		return c, fmt.Errorf("ANTHROPIC_API_KEY is required")
 	}

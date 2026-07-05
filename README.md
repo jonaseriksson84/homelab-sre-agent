@@ -17,6 +17,7 @@ Alertmanager ──webhook──▶ sre-agent ──▶ gather Context Bundle �
 - **Targeting** — the alert's `container` label picks the diagnosis Target; without one, alert labels are fuzzy-matched against running container names; failing that, the diagnosis runs on host-level context alone. No incident is ever dropped for want of a target.
 - **Context Bundle** — deterministic and size-bounded: the target's Loki logs (±15 min, byte-budgeted keeping the newest lines), a fixed panel of downsampled Prometheus queries, and Docker container states. A source being down is noted in the bundle, never fatal.
 - **Triage → escalation** — every Incident is first diagnosed by `claude-haiku-4-5` in a single structured call. If its confidence falls below the threshold, the same bundle re-runs on `claude-opus-4-8`. Only the final Diagnosis is notified.
+- **Incident Memory** — the bundle ends with one-liners for recent prior Incidents matching the same Target or alertname (what fired, the final Diagnosis verdict, time-to-resolve), so a recurring failure is diagnosed as a recurrence. This is where flap awareness lives: flaps create new Incidents, and memory connects them. It comes from the agent's own SQLite store, so it survives a Loki/Prometheus outage.
 - **Read-only by design** — Docker is reached exclusively through a GET-only [socket proxy](docs/adr/0001-docker-socket-proxy.md); there is no auto-remediation.
 
 ## Usage
@@ -48,6 +49,8 @@ Everything is env vars. Only `ANTHROPIC_API_KEY` is required; the defaults match
 | `SRE_ESCALATION_MODEL` | `claude-opus-4-8` | Escalation model |
 | `SRE_CONFIDENCE_THRESHOLD` | `0.7` | Escalate below this triage confidence |
 | `SRE_LOG_BYTE_BUDGET` | `40960` | Max bytes of logs in the Context Bundle |
+| `SRE_MEMORY_WINDOW_DAYS` | `30` | Incident Memory lookback window |
+| `SRE_MEMORY_MAX_ENTRIES` | `5` | Max prior Incidents in the bundle (`0` disables memory) |
 | `SRE_LISTEN_ADDR` | `:8080` | Webhook listen address |
 | `SRE_DB_PATH` | `incidents.db` | SQLite incident store |
 | `SRE_ANTHROPIC_URL` | `https://api.anthropic.com` | Claude API base URL (tests point this at fakes) |
@@ -70,8 +73,7 @@ Deployment is one Docker image with both subcommands — see [`docker-compose.ex
 
 ## Roadmap
 
-Phases 1–2 (CLI + webhook server) are implemented. Still ahead, per [`docs/design.md`](docs/design.md):
+Phases 1–3 (CLI, webhook server, Incident Memory) are implemented. Still ahead, per [`docs/design.md`](docs/design.md):
 
-3. **Incident memory** — prior incidents for the same target/alert fed back into the Context Bundle
 4. **Agentic tool use** — read-only Loki/Prometheus/Docker tools available to the escalation call
 5. **MCP server** — chat about homelab status from Claude over the tailnet

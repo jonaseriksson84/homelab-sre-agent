@@ -61,6 +61,8 @@ func run() error {
 		ConfidenceThreshold: cfg.ConfidenceThreshold,
 		TriageModel:         cfg.TriageModel,
 		EscalationModel:     cfg.EscalationModel,
+		MemoryWindowDays:    cfg.MemoryWindowDays,
+		MemoryMaxEntries:    cfg.MemoryMaxEntries,
 		Log:                 log,
 	}
 

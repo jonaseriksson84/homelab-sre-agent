@@ -24,6 +24,8 @@ type Pipeline struct {
 	ConfidenceThreshold float64
 	TriageModel         string
 	EscalationModel     string
+	MemoryWindowDays    int // Incident Memory lookback; entries older are excluded
+	MemoryMaxEntries    int // max prior Incidents in the bundle; 0 disables memory
 	Log                 *slog.Logger
 }
 
@@ -43,9 +45,12 @@ func (d Diagnosis) Text() string {
 	return fmt.Sprintf("%s\n\nLikely cause: %s", d.Triage.Summary, d.Triage.LikelyCause)
 }
 
-// diagnose runs gather → triage → maybe escalate for a target.
-func (p *Pipeline) diagnose(ctx context.Context, target string, at time.Time) (Diagnosis, gather.Bundle, error) {
+// diagnose runs gather → triage → maybe escalate for a target. memory is the
+// rendered Incident Memory section ("" when disabled); it joins the bundle
+// before triage so both models see the same history.
+func (p *Pipeline) diagnose(ctx context.Context, target string, at time.Time, memory string) (Diagnosis, gather.Bundle, error) {
 	bundle := p.Gatherer.Gather(ctx, target, at)
+	bundle.Text += memory
 	p.Log.Info("context bundle gathered", "target", target, "bytes", len(bundle.Text))
 
 	triage, err := p.Claude.Triage(ctx, bundle.Text)
@@ -76,7 +81,8 @@ func (p *Pipeline) diagnose(ctx context.Context, target string, at time.Time) (D
 // webhook path but stored with source `manual` and never notified.
 func (p *Pipeline) DiagnoseManual(ctx context.Context, target string) (Diagnosis, error) {
 	now := time.Now()
-	d, _, err := p.diagnose(ctx, target, now)
+	memory := p.incidentMemory(target, nil, 0, now)
+	d, _, err := p.diagnose(ctx, target, now, memory)
 	if err != nil {
 		return d, err
 	}
@@ -154,7 +160,8 @@ func (p *Pipeline) HandleWebhook(ctx context.Context, wh Webhook) error {
 		}
 		p.Log.Info("incident created", "id", inc.ID, "group_key", wh.GroupKey, "target", target)
 
-		d, _, err := p.diagnose(ctx, target, now)
+		memory := p.incidentMemory(target, wh.Alerts, inc.ID, now)
+		d, _, err := p.diagnose(ctx, target, now, memory)
 		if err != nil {
 			p.Log.Error("diagnosis failed", "id", inc.ID, "error", err)
 			return err

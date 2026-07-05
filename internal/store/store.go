@@ -4,6 +4,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -119,6 +120,52 @@ func (s *Store) Resolve(id int64, t time.Time) error {
 	return err
 }
 
+// FindRecentMatching returns prior Incidents for Incident Memory: created
+// since `since`, sharing the target (when non-empty) or any alertname with
+// the incident under diagnosis, excluding that incident itself, newest first,
+// capped at limit. Open and resolved rows both qualify.
+func (s *Store) FindRecentMatching(target string, alertNames []string, excludeID int64, since time.Time, limit int) ([]*Incident, error) {
+	rows, err := s.db.Query(`
+		SELECT id, source, group_key, alert_names, target, status,
+			created_at, last_seen, resolved_at, triage_output,
+			triage_confidence, escalation_output, model_used, notified
+		FROM incidents WHERE created_at >= ? AND id != ?
+		ORDER BY created_at DESC, id DESC`, fmtTime(since), excludeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []*Incident
+	for rows.Next() && len(out) < limit {
+		inc, err := scanIncident(rows)
+		if err != nil {
+			return nil, err
+		}
+		if matchesMemory(inc, target, alertNames) {
+			out = append(out, inc)
+		}
+	}
+	return out, rows.Err()
+}
+
+func matchesMemory(inc *Incident, target string, alertNames []string) bool {
+	if target != "" && inc.Target == target {
+		return true
+	}
+	if inc.AlertNames == "" {
+		return false
+	}
+	for _, stored := range strings.Split(inc.AlertNames, ",") {
+		for _, a := range alertNames {
+			if a != "" && a == stored {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // SetDiagnosis records the triage (and optional escalation) outputs after the
 // pipeline ran.
 func (s *Store) SetDiagnosis(id int64, triageOutput string, confidence float64, escalationOutput, modelUsed string, notified bool) error {
@@ -130,7 +177,7 @@ func (s *Store) SetDiagnosis(id int64, triageOutput string, confidence float64, 
 	return err
 }
 
-func scanIncident(row *sql.Row) (*Incident, error) {
+func scanIncident(row interface{ Scan(...any) error }) (*Incident, error) {
 	var inc Incident
 	var created, lastSeen string
 	var resolved sql.NullString
