@@ -11,6 +11,7 @@ import (
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/notify"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/pipeline"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/store"
+	"github.com/jonaseriksson84/homelab-sre-agent/internal/tools"
 )
 
 func newPipeline(t *testing.T, f *fakes) (*pipeline.Pipeline, *store.Store) {
@@ -35,8 +36,15 @@ func newPipeline(t *testing.T, f *fakes) (*pipeline.Pipeline, *store.Store) {
 			TriageModel:     "test-haiku",
 			EscalationModel: "test-opus",
 		}),
-		Store:               st,
-		Notifier:            notify.NewNtfy(f.ntfy.URL, "test-topic"),
+		Store:    st,
+		Notifier: notify.NewNtfy(f.ntfy.URL, "test-topic"),
+		Tools: tools.New(tools.Config{
+			LokiURL:            f.loki.URL,
+			LokiContainerLabel: "container",
+			PrometheusURL:      f.prom.URL,
+			DockerProxyURL:     f.docker.URL,
+		}, st, slog.New(slog.NewTextHandler(io.Discard, nil))),
+		ToolBudget:          5,
 		ConfidenceThreshold: 0.7,
 		TriageModel:         "test-haiku",
 		EscalationModel:     "test-opus",

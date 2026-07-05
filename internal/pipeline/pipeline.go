@@ -14,6 +14,7 @@ import (
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/gather"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/notify"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/store"
+	"github.com/jonaseriksson84/homelab-sre-agent/internal/tools"
 )
 
 type Pipeline struct {
@@ -21,12 +22,28 @@ type Pipeline struct {
 	Claude              *claude.Client
 	Store               *store.Store
 	Notifier            notify.Notifier
+	Tools               *tools.Registry // read-only tool registry for Escalation; nil disables
+	ToolBudget          int             // max tool calls per Escalation; 0 disables
 	ConfidenceThreshold float64
 	TriageModel         string
 	EscalationModel     string
 	MemoryWindowDays    int // Incident Memory lookback; entries older are excluded
 	MemoryMaxEntries    int // max prior Incidents in the bundle; 0 disables memory
 	Log                 *slog.Logger
+}
+
+// escalationTools maps the registry to the claude package's tool shape; nil
+// when tools are disabled.
+func (p *Pipeline) escalationTools() ([]claude.Tool, claude.ToolFunc) {
+	if p.Tools == nil || p.ToolBudget <= 0 {
+		return nil, nil
+	}
+	defs := p.Tools.Tools()
+	out := make([]claude.Tool, len(defs))
+	for i, d := range defs {
+		out[i] = claude.Tool{Name: d.Name, Description: d.Description, InputSchema: d.InputSchema}
+	}
+	return out, p.Tools.Execute
 }
 
 // Diagnosis is the final answer for an Incident: the triage result, plus the
@@ -63,7 +80,8 @@ func (p *Pipeline) diagnose(ctx context.Context, target string, at time.Time, me
 
 	if triage.Confidence < p.ConfidenceThreshold || triage.InsufficientEvidence {
 		p.Log.Info("escalating", "model", p.EscalationModel)
-		escalated, err := p.Claude.Escalate(ctx, bundle.Text)
+		defs, exec := p.escalationTools()
+		escalated, toolCalls, err := p.Claude.Escalate(ctx, bundle.Text, defs, exec, p.ToolBudget)
 		if err != nil {
 			// Conservative: a failed escalation still leaves us with the
 			// triage diagnosis rather than nothing.
@@ -71,7 +89,7 @@ func (p *Pipeline) diagnose(ctx context.Context, target string, at time.Time, me
 		} else {
 			d.Escalated = escalated
 			d.ModelUsed = p.EscalationModel
-			p.Log.Info("escalation complete", "model", p.EscalationModel)
+			p.Log.Info("escalation complete", "model", p.EscalationModel, "tool_calls", toolCalls)
 		}
 	}
 	return d, bundle, nil

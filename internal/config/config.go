@@ -22,6 +22,7 @@ type Config struct {
 	LogByteBudget       int
 	MemoryWindowDays    int
 	MemoryMaxEntries    int
+	ToolBudget          int
 	ListenAddr          string
 	DBPath              string
 }
@@ -54,6 +55,9 @@ func Load() (Config, error) {
 		return c, err
 	}
 	if c.MemoryMaxEntries, err = getint("SRE_MEMORY_MAX_ENTRIES", 5); err != nil {
+		return c, err
+	}
+	if c.ToolBudget, err = getint("SRE_TOOL_BUDGET", 5); err != nil {
 		return c, err
 	}
 	if c.AnthropicKey == "" {

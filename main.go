@@ -16,6 +16,7 @@ import (
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/pipeline"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/server"
 	"github.com/jonaseriksson84/homelab-sre-agent/internal/store"
+	"github.com/jonaseriksson84/homelab-sre-agent/internal/tools"
 )
 
 func main() {
@@ -56,8 +57,15 @@ func run() error {
 			TriageModel:     cfg.TriageModel,
 			EscalationModel: cfg.EscalationModel,
 		}),
-		Store:               st,
-		Notifier:            notify.NewNtfy(cfg.NtfyURL, cfg.NtfyTopic),
+		Store:    st,
+		Notifier: notify.NewNtfy(cfg.NtfyURL, cfg.NtfyTopic),
+		Tools: tools.New(tools.Config{
+			LokiURL:            cfg.LokiURL,
+			LokiContainerLabel: cfg.LokiContainerLabel,
+			PrometheusURL:      cfg.PrometheusURL,
+			DockerProxyURL:     cfg.DockerProxyURL,
+		}, st, log),
+		ToolBudget:          cfg.ToolBudget,
 		ConfidenceThreshold: cfg.ConfidenceThreshold,
 		TriageModel:         cfg.TriageModel,
 		EscalationModel:     cfg.EscalationModel,

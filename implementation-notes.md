@@ -1,6 +1,6 @@
-# Implementation Notes — issues #1 (phases 1–2) and #2 (phase 3)
+# Implementation Notes — issues #1 (phases 1–2), #2 (phase 3), #3 (phase 4), #4 (phase 5)
 
-Running log kept during implementation. PRDs: GitHub issues #1 and #2. Design: `docs/design.md`.
+Running log kept during implementation. PRDs: GitHub issues #1–#4. Design: `docs/design.md`.
 
 ## Progress
 
@@ -10,6 +10,8 @@ Running log kept during implementation. PRDs: GitHub issues #1 and #2. Design: `
 - Tests: 11 passing — 9 pipeline scenarios (manual no-notify, low-confidence escalation notified once, repeat-firing bump, resolved low-priority ping, flap→new incident, fuzzy target match, host-level no-target, Loki-down degradation noted in bundle, byte-budget truncation keeps newest) + 2 server (async 202 creates incident, 400 on invalid payload). All deps faked at the HTTP seam; real temp SQLite.
 - Dockerfile (static build, non-root) + `docker-compose.example.yml` matching the deployment contract in `docs/deployment.md`, including the ADR-0001 socket proxy.
 - 2026-07-05: phase 3 Incident Memory (issue #2): `store.FindRecentMatching` (target OR alertname, windowed, capped, self-excluded) + `pipeline/memory.go` rendering one-liners appended to the bundle before triage; gather stays store-free. Config: `SRE_MEMORY_WINDOW_DAYS` (30), `SRE_MEMORY_MAX_ENTRIES` (5, 0 disables). 7 new pipeline scenarios (flap carries memory, alertname match without target, unrelated excluded + no-priors line, cap keeps newest, window ages out, manual run sees memory + STILL OPEN prior, limit 0 omits section).
+
+- 2026-07-06: phase 4 agentic tool use (issue #3): `internal/tools` registry — one implementation of `query_loki`, `query_prometheus`, `list_containers`, `inspect_container`, `get_incidents` (backed by `store.FindIncidents`), each result byte-capped at 16 KiB keeping newest data, each call logged at INFO. `claude.Escalate` gained a bounded tool loop (raw net/http, content blocks replayed as raw JSON so thinking blocks survive turns; budget exhaustion forces a `tool_choice: none` conclusion turn; tool errors become `is_error` tool results). Config: `SRE_TOOL_BUDGET` (5, 0 reverts to single-shot). Triage untouched. 7 new pipeline scenarios (cross-container loki query, budget enforced + diagnosis still produced, tool error fed back, triage declares no tools, budget 0 single-shot, get_incidents sees pipeline-created history, byte cap respected).
 
 ## Deviations
 

@@ -166,6 +166,47 @@ func matchesMemory(inc *Incident, target string, alertNames []string) bool {
 	return false
 }
 
+// FindIncidents is the incident-history query behind the get_incidents tool:
+// incidents created since `since`, optionally filtered by exact target and/or
+// alertname membership, newest first, capped at limit.
+func (s *Store) FindIncidents(target, alertname string, since time.Time, limit int) ([]*Incident, error) {
+	rows, err := s.db.Query(`
+		SELECT id, source, group_key, alert_names, target, status,
+			created_at, last_seen, resolved_at, triage_output,
+			triage_confidence, escalation_output, model_used, notified
+		FROM incidents WHERE created_at >= ?
+		ORDER BY created_at DESC, id DESC`, fmtTime(since))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []*Incident
+	for rows.Next() && len(out) < limit {
+		inc, err := scanIncident(rows)
+		if err != nil {
+			return nil, err
+		}
+		if target != "" && inc.Target != target {
+			continue
+		}
+		if alertname != "" && !hasAlert(inc, alertname) {
+			continue
+		}
+		out = append(out, inc)
+	}
+	return out, rows.Err()
+}
+
+func hasAlert(inc *Incident, alertname string) bool {
+	for _, stored := range strings.Split(inc.AlertNames, ",") {
+		if stored == alertname {
+			return true
+		}
+	}
+	return false
+}
+
 // SetDiagnosis records the triage (and optional escalation) outputs after the
 // pipeline ran.
 func (s *Store) SetDiagnosis(id int64, triageOutput string, confidence float64, escalationOutput, modelUsed string, notified bool) error {

@@ -38,6 +38,11 @@ type fakes struct {
 	escalation     string
 	lokiLines      []string
 	lokiDown       bool
+	lokiQueries    []string
+	// escalationTurns scripts the Claude fake's escalation responses: each
+	// entry is one turn's content blocks (tool_use blocks make the turn stop
+	// for tool use). Exhausted or tool_choice:none → plain escalation text.
+	escalationTurns [][]map[string]any
 }
 
 func newFakes(t *testing.T) *fakes {
@@ -55,6 +60,7 @@ func newFakes(t *testing.T) *fakes {
 	f.loki = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
+		f.lokiQueries = append(f.lokiQueries, r.URL.Query().Get("query"))
 		if f.lokiDown {
 			http.Error(w, "loki is down", http.StatusInternalServerError)
 			return
@@ -78,6 +84,19 @@ func newFakes(t *testing.T) *fakes {
 	}))
 
 	f.docker = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// GET /containers/{name}/json = inspect; GET /containers/json = list.
+		if name := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/containers/"), "/json"); name != "" && name != "/containers/json" && r.URL.Path != "/containers/json" {
+			json.NewEncoder(w).Encode(map[string]any{
+				"Name": "/" + name,
+				"State": map[string]any{
+					"Status": "restarting", "ExitCode": 1, "OOMKilled": false,
+					"Restarting": true, "StartedAt": "2026-07-05T12:00:00Z",
+				},
+				"RestartCount": 7,
+				"Config":       map[string]any{"Image": "nginx:latest"},
+			})
+			return
+		}
 		json.NewEncoder(w).Encode([]map[string]any{
 			{"Names": []string{"/nginx"}, "State": "restarting", "Status": "Restarting (1) 5s ago", "Image": "nginx:latest"},
 			{"Names": []string{"/postgres"}, "State": "running", "Status": "Up 3 days", "Image": "postgres:16"},
@@ -92,17 +111,39 @@ func newFakes(t *testing.T) *fakes {
 		f.claudeRequests = append(f.claudeRequests, req)
 		triage := f.triage
 		escalation := f.escalation
+		var turn []map[string]any
+		// With tool_choice:none the API forbids tool use, so scripted
+		// tool turns don't apply — the fake must answer with text.
+		toolsAllowed := true
+		if tc, ok := req["tool_choice"].(map[string]any); ok && tc["type"] == "none" {
+			toolsAllowed = false
+		}
+		if _, isTriage := req["output_config"]; !isTriage && toolsAllowed && len(f.escalationTurns) > 0 {
+			turn = f.escalationTurns[0]
+			f.escalationTurns = f.escalationTurns[1:]
+		}
 		f.mu.Unlock()
 
-		var text string
 		if _, isTriage := req["output_config"]; isTriage {
 			b, _ := json.Marshal(triage)
-			text = string(b)
-		} else {
-			text = escalation
+			json.NewEncoder(w).Encode(map[string]any{
+				"content":     []map[string]any{{"type": "text", "text": string(b)}},
+				"stop_reason": "end_turn",
+			})
+			return
+		}
+		if turn != nil {
+			stop := "end_turn"
+			for _, block := range turn {
+				if block["type"] == "tool_use" {
+					stop = "tool_use"
+				}
+			}
+			json.NewEncoder(w).Encode(map[string]any{"content": turn, "stop_reason": stop})
+			return
 		}
 		json.NewEncoder(w).Encode(map[string]any{
-			"content":     []map[string]any{{"type": "text", "text": text}},
+			"content":     []map[string]any{{"type": "text", "text": escalation}},
 			"stop_reason": "end_turn",
 		})
 	}))
@@ -142,6 +183,18 @@ func (f *fakes) setTriage(tr claude.Triage) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.triage = tr
+}
+
+func (f *fakes) scriptEscalation(turns ...[]map[string]any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.escalationTurns = turns
+}
+
+func (f *fakes) lokiQueriesSeen() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.lokiQueries...)
 }
 
 // --- helpers moved to setup_test.go ---
