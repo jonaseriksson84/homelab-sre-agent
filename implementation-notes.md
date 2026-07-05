@@ -16,11 +16,12 @@ Running log kept during implementation. PRD: GitHub issue #1. Design: `docs/desi
 - **SQLite driver: `modernc.org/sqlite` (pure Go, no cgo).** Not specified in the PRD. Chosen so the single Docker image can be built with CGO_ENABLED=0 and cross-compiled for Unraid without a C toolchain.
 - **Manual incidents are stored already-resolved.** The PRD says manual runs become Incidents with source `manual`; it doesn't define their lifecycle. A CLI run is a one-shot episode with no resolved webhook coming, so leaving it open would strand rows forever. Conservative: create + record diagnosis + resolve immediately.
 - **Escalation failure keeps the triage diagnosis.** Not specified in the PRD. If the Opus call errors, notifying the (low-confidence) triage result beats notifying nothing; the store shows `model_used` = triage model so the degradation is auditable.
-- **Loki log selector is `{container="<target>"}`.** The PRD says "the target's logs"; the exact label depends on the promtail/alloy config on Tower. Made the label name configurable via `SRE_LOKI_CONTAINER_LABEL` (default `container`) so a mismatch is a config change, not a code change.
+- **Loki log selector is `{container_name="<target>"}`.** The PRD says "the target's logs"; the label is configurable via `SRE_LOKI_CONTAINER_LABEL`. Originally defaulted to `container`, but the live smoke test (2026-07-05) showed promtail on Tower exposes `container_name` (plain names, no `/` prefix) — default updated to match.
+- **Structured-output schema can't use `minimum`/`maximum` on numbers.** The live API rejects them with a 400 (the fakes didn't validate schemas, so tests missed it). The confidence 0–1 range moved into the field description and is clamped after parsing.
 
 - 2026-07-04: Docker image build verified on Tower (`git archive | ssh tower docker build -` → `sre-agent:dev`); binary runs and fails cleanly on missing `ANTHROPIC_API_KEY`. Local Docker daemon wasn't running, hence the remote build.
 
 ## Open questions / to verify on the live stack
 
-- Confirm the Loki stream label promtail uses for container names on Tower.
-- Smoke-test `diagnose` against tailnet endpoints once the pipeline passes its fake-backed tests.
+- ~~Confirm the Loki stream label promtail uses for container names on Tower.~~ Resolved 2026-07-05: it's `container_name`.
+- ~~Smoke-test `diagnose` against tailnet endpoints.~~ Done 2026-07-05: `diagnose grafana` from a dev Mac ran the full pipeline (bundle → Haiku triage → printed diagnosis, confidence 0.85). Docker states were unavailable as expected — the socket proxy deploys with the agent.

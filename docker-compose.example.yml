@@ -26,6 +26,8 @@ services:
     environment:
       CONTAINERS: 1 # allow GET /containers/*
       POST: 0      # no mutating methods
+    ports:
+      - "2375:2375" # LAN-exposed so the dev CLI can smoke-test (docs/deployment.md); GET-only
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:

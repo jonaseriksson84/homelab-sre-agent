@@ -39,7 +39,7 @@ Everything is env vars. Only `ANTHROPIC_API_KEY` is required; the defaults match
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — (required) | Claude API key |
 | `SRE_LOKI_URL` | `http://loki:3100` | Loki base URL |
-| `SRE_LOKI_CONTAINER_LABEL` | `container` | Loki stream label holding container names |
+| `SRE_LOKI_CONTAINER_LABEL` | `container_name` | Loki stream label holding container names |
 | `SRE_PROMETHEUS_URL` | `http://prometheus:9090` | Prometheus base URL |
 | `SRE_DOCKER_PROXY_URL` | `http://docker-proxy:2375` | GET-only docker socket proxy |
 | `SRE_NTFY_URL` | `https://ntfy.sh` | ntfy server |

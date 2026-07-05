@@ -40,10 +40,12 @@ type Triage struct {
 var triageSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
-		"summary":               map[string]any{"type": "string", "description": "One-paragraph plain-language diagnosis"},
-		"likely_cause":          map[string]any{"type": "string", "description": "Most likely root cause, one sentence"},
-		"severity":              map[string]any{"type": "string", "enum": []string{"critical", "warning", "info"}},
-		"confidence":            map[string]any{"type": "number", "minimum": 0, "maximum": 1},
+		"summary":      map[string]any{"type": "string", "description": "One-paragraph plain-language diagnosis"},
+		"likely_cause": map[string]any{"type": "string", "description": "Most likely root cause, one sentence"},
+		"severity":     map[string]any{"type": "string", "enum": []string{"critical", "warning", "info"}},
+		// The structured-output validator rejects minimum/maximum on numbers;
+		// the range lives in the description and is clamped after parsing.
+		"confidence":            map[string]any{"type": "number", "description": "Confidence in the diagnosis, between 0 and 1"},
 		"insufficient_evidence": map[string]any{"type": "boolean"},
 	},
 	"required":             []string{"summary", "likely_cause", "severity", "confidence", "insufficient_evidence"},
@@ -79,6 +81,7 @@ func (c *Client) Triage(ctx context.Context, bundle string) (Triage, error) {
 	if err := json.Unmarshal([]byte(text), &t); err != nil {
 		return Triage{}, fmt.Errorf("parsing triage output: %w", err)
 	}
+	t.Confidence = min(max(t.Confidence, 0), 1)
 	return t, nil
 }
 

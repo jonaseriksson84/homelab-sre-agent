@@ -27,7 +27,7 @@ type Config struct {
 func Load() (Config, error) {
 	c := Config{
 		LokiURL:            getenv("SRE_LOKI_URL", "http://loki:3100"),
-		LokiContainerLabel: getenv("SRE_LOKI_CONTAINER_LABEL", "container"),
+		LokiContainerLabel: getenv("SRE_LOKI_CONTAINER_LABEL", "container_name"),
 		PrometheusURL:      getenv("SRE_PROMETHEUS_URL", "http://prometheus:9090"),
 		DockerProxyURL:     getenv("SRE_DOCKER_PROXY_URL", "http://docker-proxy:2375"),
 		NtfyURL:            getenv("SRE_NTFY_URL", "https://ntfy.sh"),
