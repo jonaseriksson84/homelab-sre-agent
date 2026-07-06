@@ -1,9 +1,9 @@
-# Example deployment for Tower/Unraid. The container name, network, port, and
-# webhook path are the contract Alertmanager already targets — see
-# docs/deployment.md before changing them.
+# Example deployment. Attach the agent to the same network as your
+# Prometheus/Loki/Alertmanager stack and point an Alertmanager webhook
+# receiver at http://sre-agent:8080/webhook — see docs/setup.md.
 services:
   sre-agent:
-    build: .
+    image: ghcr.io/jonaseriksson84/homelab-sre-agent:latest
     container_name: sre-agent
     restart: unless-stopped
     environment:
@@ -13,17 +13,17 @@ services:
       SRE_PROMETHEUS_URL: http://prometheus:9090
       SRE_DOCKER_PROXY_URL: http://docker-proxy:2375
       SRE_DB_PATH: /data/incidents.db
-      # MCP server (phase 5). Bind the published port to Tower's Tailscale IP
-      # ONLY — no app auth by design (ADR-0002); the tailnet is the boundary.
-      SRE_MCP_LISTEN_ADDR: ":8082"
-    ports:
-      - "100.x.y.z:8082:8082" # replace with `tailscale ip -4` on the host
+      # Optional MCP server. If enabled, bind the published port to the host's
+      # Tailscale IP ONLY — no app auth by design (ADR-0002); the tailnet is
+      # the boundary. Leave unset to disable.
+      # SRE_MCP_LISTEN_ADDR: ":8082"
+    # ports:
+    #   - "100.x.y.z:8082:8082" # replace with `tailscale ip -4` on the host
     volumes:
-      # Data subdir only — keeps .env and the compose file out of the container.
-      # Must be writable by the image's non-root user: chown 1000:1000 data
-      - /mnt/user/appdata/sre-agent/data:/data
+      # Must be writable by the image's non-root user: chown 1000:1000 ./data
+      - ./data:/data
     networks:
-      - monitoring_default
+      - monitoring
 
   # GET-only socket proxy per ADR-0001: the agent never mounts the real socket.
   docker-proxy:
@@ -33,13 +33,11 @@ services:
     environment:
       CONTAINERS: 1 # allow GET /containers/*
       POST: 0      # no mutating methods
-    ports:
-      - "2375:2375" # LAN-exposed so the dev CLI can smoke-test (docs/deployment.md); GET-only
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - monitoring_default
+      - monitoring
 
 networks:
-  monitoring_default:
-    external: true
+  monitoring:
+    external: true # your existing monitoring stack's network

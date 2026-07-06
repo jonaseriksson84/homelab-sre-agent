@@ -21,7 +21,9 @@ import (
 )
 
 // version identifies the build to MCP clients during the handshake.
-const version = "0.5.0"
+// Release builds inject the git tag via -ldflags "-X main.version=..."
+// (see the Dockerfile's VERSION build arg); anything else is "dev".
+var version = "dev"
 
 func main() {
 	if err := run(); err != nil {

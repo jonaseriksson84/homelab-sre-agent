@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>sre-agent</Name>
+  <Repository>ghcr.io/jonaseriksson84/homelab-sre-agent:latest</Repository>
+  <Registry>https://ghcr.io/jonaseriksson84/homelab-sre-agent</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/jonaseriksson84/homelab-sre-agent/issues</Support>
+  <Project>https://github.com/jonaseriksson84/homelab-sre-agent</Project>
+  <Overview>
+    Auto-diagnoses homelab incidents. Receives Alertmanager webhooks, gathers logs (Loki), metrics (Prometheus), and container state around the incident, asks Claude what most likely went wrong, and pushes a plain-language diagnosis to your phone via ntfy. Read-only by design: Docker is reached only through a GET-only socket proxy and there is no auto-remediation.
+
+    REQUIRES an existing monitoring stack: Prometheus, Loki (with promtail or similar shipping container logs), and Alertmanager routing a webhook receiver at http://[this container]:8080/webhook. All are available in Community Applications. Also requires a GET-only Docker socket proxy (e.g. the "docker-socket-proxy" CA app with only CONTAINERS=1 granted) and an Anthropic API key. Without the monitoring stack the container starts and does nothing.
+
+    Optional: an MCP server on a second port lets Claude clients chat about homelab status. It has NO authentication by design — only ever bind it to a Tailscale/VPN interface, never the LAN or the internet.
+  </Overview>
+  <Category>AI: Tools:Utilities</Category>
+  <WebUI/>
+  <TemplateURL>https://raw.githubusercontent.com/jonaseriksson84/homelab-sre-agent/main/unraid/sre-agent.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/jonaseriksson84/homelab-sre-agent/main/unraid/icon.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <DonateText/>
+  <DonateLink/>
+  <Config Name="Anthropic API key" Target="ANTHROPIC_API_KEY" Default="" Mode="" Description="Claude API key (console.anthropic.com). Required." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="ntfy topic" Target="SRE_NTFY_TOPIC" Default="" Mode="" Description="ntfy topic to push diagnoses to. Treat the topic name as a secret. Empty disables notifications." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="ntfy server" Target="SRE_NTFY_URL" Default="https://ntfy.sh" Mode="" Description="ntfy server base URL (self-hosted or ntfy.sh)." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Loki URL" Target="SRE_LOKI_URL" Default="http://loki:3100" Mode="" Description="Loki base URL. Container logs must be shipped to Loki (promtail) for diagnoses to see them." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Loki container label" Target="SRE_LOKI_CONTAINER_LABEL" Default="container_name" Mode="" Description="Loki stream label that holds Docker container names (promtail's docker_sd usually exposes container_name)." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Prometheus URL" Target="SRE_PROMETHEUS_URL" Default="http://prometheus:9090" Mode="" Description="Prometheus base URL." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Docker socket proxy URL" Target="SRE_DOCKER_PROXY_URL" Default="http://docker-proxy:2375" Mode="" Description="GET-only Docker socket proxy (e.g. tecnativa/docker-socket-proxy with CONTAINERS=1, POST=0). Never point this at the raw Docker socket." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Triage model" Target="SRE_TRIAGE_MODEL" Default="claude-haiku-4-5" Mode="" Description="Cheap model used for the first-pass diagnosis of every incident." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Escalation model" Target="SRE_ESCALATION_MODEL" Default="claude-opus-4-8" Mode="" Description="Stronger model used when triage confidence is below the threshold." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Confidence threshold" Target="SRE_CONFIDENCE_THRESHOLD" Default="0.7" Mode="" Description="Escalate to the stronger model below this triage confidence (0-1)." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Log byte budget" Target="SRE_LOG_BYTE_BUDGET" Default="40960" Mode="" Description="Max bytes of logs included in each diagnosis context (newest kept)." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Incident memory window (days)" Target="SRE_MEMORY_WINDOW_DAYS" Default="30" Mode="" Description="How far back prior incidents are recalled into new diagnoses." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Incident memory max entries" Target="SRE_MEMORY_MAX_ENTRIES" Default="5" Mode="" Description="Max prior incidents recalled per diagnosis (0 disables incident memory)." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Tool budget" Target="SRE_TOOL_BUDGET" Default="5" Mode="" Description="Max read-only tool calls the escalation model may make per incident (0 disables tools)." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="MCP listen address" Target="SRE_MCP_LISTEN_ADDR" Default="" Mode="" Description="Optional MCP server listen address, e.g. :8082 (empty = disabled). WARNING: no authentication by design — publish the port ONLY on a Tailscale/VPN interface, never on the LAN or the internet. See ADR-0002 in the project docs." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Database path" Target="SRE_DB_PATH" Default="/data/incidents.db" Mode="" Description="SQLite incident store path inside the container. Keep it under /data so history survives updates." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Webhook port" Target="8080" Default="8080" Mode="tcp" Description="Alertmanager webhook receiver. Point an Alertmanager webhook_configs url at http://[IP]:[PORT:8080]/webhook" Type="Port" Display="always" Required="true" Mask="false"/>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/sre-agent" Mode="rw" Description="Incident history (SQLite). Must be writable by UID 1000." Type="Path" Display="always" Required="true" Mask="false"/>
+</Container>

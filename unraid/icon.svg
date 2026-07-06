@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <rect x="8" y="8" width="240" height="240" rx="48" fill="#16232e"/>
+  <rect x="8" y="8" width="240" height="240" rx="48" fill="none" stroke="#2b4152" stroke-width="6"/>
+  <!-- heartbeat trace with an anomaly spike under the lens -->
+  <polyline points="28,148 68,148 84,112 100,184 116,148 150,148"
+            fill="none" stroke="#3ddc91" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="186,148 228,148" fill="none" stroke="#3ddc91" stroke-width="12" stroke-linecap="round" opacity="0.45"/>
+  <!-- magnifying glass inspecting the trace -->
+  <circle cx="168" cy="130" r="42" fill="none" stroke="#e8f1f2" stroke-width="14"/>
+  <line x1="198" y1="160" x2="228" y2="190" stroke="#e8f1f2" stroke-width="16" stroke-linecap="round"/>
+  <polyline points="146,138 160,138 168,118 178,150 186,132 192,132"
+            fill="none" stroke="#3ddc91" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

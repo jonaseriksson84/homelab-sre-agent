@@ -23,6 +23,11 @@ coverage.html
 # Local scratch (issue-tracker convention keeps .scratch/ untracked)
 .scratch/
 
+# Operator-local records: the dev diary and the maintainer's own deployment
+# notes stay on disk but out of the public repo.
+/implementation-notes.md
+/docs/deployment.tower.md
+
 # Editor / OS noise
 .DS_Store
 .idea/

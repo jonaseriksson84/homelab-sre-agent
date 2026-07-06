@@ -1,0 +1,3 @@
+# Claude is the only LLM provider, for now — a deliberate deferral
+
+The agent talks to exactly one LLM API (Anthropic's Messages API, via raw HTTP against a configurable base URL). Multi-provider support (OpenAI, local models via Ollama, etc.) has been considered and deliberately deferred, not overlooked: the triage/escalation split, structured-output schema, and the tool-use loop are all written against Claude's API shapes, and abstracting them before a second provider exists would be speculation. If you want another provider, the seam to build is an interface over the `claude` package's triage/escalate calls — do not fork per-provider logic into the pipeline. Until then, single-provider is the intended state, not a defect.
