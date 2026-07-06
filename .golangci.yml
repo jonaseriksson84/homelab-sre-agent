@@ -1,0 +1,25 @@
+# Mostly defaults: errcheck, govet, ineffassign, staticcheck, unused.
+version: "2"
+
+linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        # Unchecked `defer x.Close()` on read paths is idiomatic; write paths
+        # in this codebase report errors through the surrounding call instead.
+        - (io.Closer).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Rows).Close
+        - (*github.com/jonaseriksson84/homelab-sre-agent/internal/store.Store).Close
+  exclusions:
+    rules:
+      # Test fakes ignore encode/handler errors on purpose: a broken fake
+      # fails its scenario's assertions anyway.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

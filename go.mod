@@ -2,6 +2,8 @@ module github.com/jonaseriksson84/homelab-sre-agent
 
 go 1.26.1
 
+toolchain go1.26.4
+
 require (
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	modernc.org/sqlite v1.53.0

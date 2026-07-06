@@ -15,7 +15,7 @@ From zero to a diagnosed incident. The agent assumes a monitoring stack you prob
 
 On Unraid, all of the monitoring pieces are available in Community Applications. Anywhere else, any compose-based stack works.
 
-**The socket proxy is not optional.** The agent never mounts the real Docker socket ([ADR-0001](adr/0001-docker-socket-proxy.md)): it only ever talks to a proxy that allows GET requests on `/containers`. With [tecnativa/docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy) that means `CONTAINERS=1` and `POST=0` — see the [compose example](../docker-compose.example.yml).
+**The socket proxy is not optional.** The agent never mounts the real Docker socket ([ADR-0001](adr/0001-docker-socket-proxy.md)): it only ever talks to a proxy that allows GET requests on `/containers`. With [tecnativa/docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy) that means `CONTAINERS=1` and `POST=0`, as in the [compose example](../docker-compose.example.yml).
 
 ## 2. Run the agent
 
@@ -32,11 +32,11 @@ services:
       SRE_DOCKER_PROXY_URL: http://docker-proxy:2375
       SRE_DB_PATH: /data/incidents.db
     volumes:
-      - ./data:/data   # chown 1000:1000 — the image runs non-root
+      - ./data:/data   # chown 1000:1000; the image runs non-root
     networks: [monitoring]
 ```
 
-Attach it to the same Docker network as Prometheus, Loki, and Alertmanager so the default service-name URLs resolve. On Unraid, install it from the CA template instead (`unraid/sre-agent.xml`) — every variable above is a form field.
+Attach it to the same Docker network as Prometheus, Loki, and Alertmanager so the default service-name URLs resolve. On Unraid, install it from the CA template instead (`unraid/sre-agent.xml`), where every variable above is a form field.
 
 ## 3. Point Alertmanager at it
 
@@ -58,7 +58,7 @@ receivers:
         send_resolved: true   # lets the agent close Incidents and time-to-resolve
 ```
 
-Container-level alerts should set a `container` label with the Docker container name — that label is how the agent picks the diagnosis Target. A typical cAdvisor-based rule:
+Container-level alerts should set a `container` label with the Docker container name, because that label is how the agent picks the diagnosis Target. A typical cAdvisor-based rule:
 
 ```yaml
 # prometheus alert rule
@@ -68,11 +68,11 @@ Container-level alerts should set a `container` label with the Docker container 
     container: "{{ $labels.name }}"
 ```
 
-Alerts without a `container` label still work — the agent fuzzy-matches labels against running container names, and falls back to a host-level diagnosis.
+Alerts without a `container` label still work: the agent fuzzy-matches labels against running container names, and falls back to a host-level diagnosis.
 
 ## 4. Check the log labels
 
-Diagnoses pull the target's logs with `{<label>="<container>"}`. The default label is `container_name` (what promtail's Docker service discovery usually exposes). If your Loki pipeline names it differently, set `SRE_LOKI_CONTAINER_LABEL` — verify with:
+Diagnoses pull the target's logs with `{<label>="<container>"}`. The default label is `container_name` (what promtail's Docker service discovery usually exposes). If your Loki pipeline names it differently, set `SRE_LOKI_CONTAINER_LABEL`. To check what your labels are called:
 
 ```bash
 curl -s "http://loki:3100/loki/api/v1/labels" | jq
@@ -102,7 +102,7 @@ go run . diagnose <container>
 
 ## 6. Optional: the MCP server
 
-`serve` can expose the same read-only tools over MCP streamable HTTP so Claude clients can chat about homelab status. It has **no authentication by design** ([ADR-0002](adr/0002-mcp-tailnet-only.md)) — the network boundary is the auth. Only ever publish the port on a Tailscale (or equivalent VPN) interface:
+`serve` can expose the same read-only tools over MCP streamable HTTP so Claude clients can chat about homelab status. It has **no authentication** ([ADR-0002](adr/0002-mcp-tailnet-only.md)); the network boundary is the auth. Only ever publish the port on a Tailscale (or equivalent VPN) interface:
 
 ```yaml
 environment:
@@ -117,4 +117,4 @@ Then from any tailnet device:
 claude mcp add --transport http homelab http://100.x.y.z:8082
 ```
 
-If you don't run a tailnet, leave `SRE_MCP_LISTEN_ADDR` unset (the default) and the listener never starts. Don't put it on the LAN "temporarily" — anyone who can reach the port can read your logs and metrics.
+If you don't run a tailnet, leave `SRE_MCP_LISTEN_ADDR` unset (the default) and the listener never starts. Don't put it on the LAN "temporarily": anyone who can reach the port can read your logs and metrics.
